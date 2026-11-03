@@ -164,6 +164,7 @@ details summary{cursor:pointer;font-weight:700;padding:6px 0}
 <div id="sheet" hidden></div>
 <!--
   AJUSTES DE LA RIFA (edita solo la línea de abajo, entre las llaves):
+  api     = dirección de tu hoja de Google (termina en /exec). Si la pones, los números y ajustes se leen de la hoja.
   prize   = premio en pesos            price  = valor por número
   drawDate= fecha del sorteo (AAAA-MM-DD)   lottery= nombre de la lotería
   phone   = tu WhatsApp con código de país, solo números (ej. "573001234567")
@@ -171,12 +172,12 @@ details summary{cursor:pointer;font-weight:700;padding:6px 0}
   numbers = números ocupados, ej. {"07":{"name":"Juan","status":"vendido"},"23":{"name":"Ana","status":"apartado"}}
   status puede ser "vendido" o "apartado". Los demás números quedan disponibles.
 -->
-<script type="application/json" id="state">{"prize":500000,"price":10000,"drawDate":"2026-11-17","lottery":"Sinuano Noche","phone":"573024660747","permit":"","winner":"","numbers":{}}</script>
+<script type="application/json" id="state">{"api":"https://script.google.com/macros/s/AKfycbwqIE8Ci4aMYtq8Vw-jlUY3vcMcdHU1bRUqIMUtkB9TaLtTe201vEdEiyb31tbK-Sm2/exec","prize":500000,"price":10000,"drawDate":"2026-11-17","lottery":"Sinuano Noche","phone":"573024660747","permit":"","winner":"","numbers":{}}</script>
 <script id="app-script">
 (function(){
   var S = JSON.parse(document.getElementById('state').textContent);
   var owner = false, ownerView = true, dirty = false;
-  var sel = new Set(), edit = null, editStatus = 'libre', buyer = '', pubMsg = '', claudeArt = null;
+  var sel = new Set(), edit = null, editStatus = 'libre', buyer = '', pubMsg = '', claudeArt = null, done = null, reserving = false, apiMsg = '', lastRemote = '';
   var COP = new Intl.NumberFormat('es-CO', {style:'currency', currency:'COP', maximumFractionDigits:0});
   var $ = function(id){ return document.getElementById(id); };
   var pad = function(n){ return String(n).padStart(2,'0'); };
@@ -299,10 +300,10 @@ details summary{cursor:pointer;font-weight:700;padding:6px 0}
       h('ol', {},
         h('li', {text:'Toca uno o varios números disponibles.'}),
         h('li', {text:'Escribe tu nombre.'}),
-        h('li', {text:'Envía el mensaje por WhatsApp al organizador.'}),
+        h('li', {text:S.api ? 'Toca Apartar ahora y avisa al organizador por WhatsApp.' : 'Envía el mensaje por WhatsApp al organizador.'}),
         h('li', {text:'Paga ' + COP.format(S.price) + ' por número. El organizador confirma y tu número aparece como vendido.'})
       ),
-      h('p', {text:'Mientras el organizador no confirme, el número puede seguir apareciendo disponible. Si dos personas piden el mismo, se asigna al primero que pague.'})
+      h('p', {text:S.api ? 'Al apartar, tu número queda marcado para todos. Cuando pagues y el organizador confirme, pasa a vendido.' : 'Mientras el organizador no confirme, el número puede seguir apareciendo disponible. Si dos personas piden el mismo, se asigna al primero que pague.'})
     );
     if (S.permit) box.append(h('p', {class:'permit', text:'Autorización: ' + S.permit}));
   }
@@ -322,6 +323,7 @@ details summary{cursor:pointer;font-weight:700;padding:6px 0}
       oninput:function(e){ buyer = e.target.value; updLink(); }});
     var ready = function(){ return buyer.trim().length >= 2; };
     function updLink(){
+      if (reserveBtn) reserveBtn.setAttribute('aria-disabled', ready() ? 'false' : 'true');
       if (!link) return;
       link.setAttribute('aria-disabled', ready() ? 'false' : 'true');
       link.setAttribute('href', waHref());
@@ -333,6 +335,10 @@ details summary{cursor:pointer;font-weight:700;padding:6px 0}
       link = h('a', {class:'btn', href:waHref(), target:'_blank', rel:'noopener', 'aria-disabled':ready() ? 'false' : 'true',
         onclick:function(e){ if (!ready()){ e.preventDefault(); copyStatus.textContent = 'Escribe tu nombre para continuar.'; nameIn.focus(); } }}, 'Apartar por WhatsApp');
     }
+    var reserveBtn = S.api ? h('button', {type:'button', class:'btn', id:'reserve-btn', disabled:reserving, 'aria-disabled':ready() ? 'false' : 'true', onclick:function(){
+      if (!ready()){ apiMsg = 'Escribe tu nombre para continuar.'; renderSheet(); return; }
+      reserve();
+    }}, reserving ? 'Apartando…' : 'Apartar ahora') : null;
     var copyBtn = h('button', {type:'button', class:'btn sec', onclick:function(){
       msgBox.value = msgText();
       var done = function(){ copyStatus.textContent = 'Mensaje copiado. Pégalo en WhatsApp.'; };
@@ -347,11 +353,12 @@ details summary{cursor:pointer;font-weight:700;padding:6px 0}
         h('span', {class:'tot', text:COP.format(nums.length * S.price)})
       ),
       h('label', {class:'f', for:'buyer-name'}, 'Tu nombre', nameIn),
-      h('div', {class:'sheet-row'}, link, copyBtn),
-      S.phone
+      h('div', {class:'sheet-row'}, S.api ? reserveBtn : [link, copyBtn]),
+      S.api ? h('p', {class:'hint', text:'Al apartar, el número queda marcado para todos. Después avisa al organizador por WhatsApp y haz el pago.'}) : S.phone
         ? h('p', {class:'hint'}, 'Se abre WhatsApp con el mensaje listo para +' + S.phone + '. Tu número queda apartado cuando el organizador lo confirme.')
         : h('p', {class:'hint'}, 'El organizador aún no ha publicado su WhatsApp. Copia el mensaje y envíaselo por el medio que él te indicó.'),
-      copyStatus, msgBox
+      apiMsg ? h('p', {class:'err', 'aria-live':'polite', text:apiMsg}) : null,
+      S.api ? null : copyStatus, msgBox
     );
   }
 
@@ -391,7 +398,8 @@ details summary{cursor:pointer;font-weight:700;padding:6px 0}
     if (owner && ownerView){
       if (edit != null){ show = true; sh.append(editorNode()); }
       else if (dirty){ show = true; sh.append(publishNode()); }
-    } else if (sel.size){ show = true; sh.append(buyNode()); }
+    } else if (done){ show = true; sh.append(doneNode()); }
+    else if (sel.size){ show = true; sh.append(buyNode()); }
     sh.hidden = !show;
     document.body.classList.toggle('has-sheet', show);
   }
@@ -449,6 +457,71 @@ details summary{cursor:pointer;font-weight:700;padding:6px 0}
     renderOwnerStats();
   }
 
+  /* ---------- Hoja de Google ---------- */
+  function applyNumbers(obj){
+    S.numbers = {};
+    Object.keys(obj || {}).forEach(function(k){ S.numbers[k] = {name:'', status:obj[k]}; });
+  }
+  function applySettings(a){
+    var digits = function(v){ return Number(String(v).replace(/\D/g, '')); };
+    if (a.premio && digits(a.premio)) S.prize = digits(a.premio);
+    if (a.valor && digits(a.valor)) S.price = digits(a.valor);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(a.fecha || '')) S.drawDate = a.fecha;
+    if ('loteria' in a) S.lottery = a.loteria;
+    if (a.whatsapp) S.phone = normPhone(a.whatsapp);
+    if ('autorizacion' in a) S.permit = a.autorizacion;
+    if ('ganador' in a){ var g = String(a.ganador).replace(/\D/g, '').slice(0, 2); S.winner = g ? pad(g) : ''; }
+  }
+  async function loadRemote(){
+    if (!S.api || document.hidden) return;
+    try {
+      var r = await fetch(S.api + (S.api.indexOf('?') > -1 ? '&' : '?') + 't=' + Date.now(), {cache:'no-store'});
+      var d = await r.json();
+      if (!d || !d.ok) return;
+      var sig = JSON.stringify([d.numeros, d.ajustes]);
+      if (sig === lastRemote) return;
+      lastRemote = sig;
+      applyNumbers(d.numeros);
+      applySettings(d.ajustes || {});
+      var removed = false;
+      Array.from(sel).forEach(function(k){ if (state(Number(k)) !== 'free'){ sel.delete(k); removed = true; } });
+      renderHeader(); renderBoard(); renderHow();
+      if (removed) renderSheet();
+    } catch (e) { /* si falla, la página sigue con lo que ya tiene */ }
+  }
+  async function reserve(){
+    if (reserving) return;
+    reserving = true; apiMsg = ''; renderSheet();
+    var nums = Array.from(sel).sort(), nombre = buyer.trim();
+    try {
+      var r = await fetch(S.api, {method:'POST', body:JSON.stringify({nombre:nombre, numeros:nums})});
+      var d = await r.json();
+      if (!d || !d.ok) throw new Error('api');
+      applyNumbers(d.numeros);
+      lastRemote = '';
+      nums.forEach(function(k){ sel.delete(k); });
+      var got = d.apartados || [];
+      if (got.length) done = {nums:got, busy:d.ocupados || [], name:nombre};
+      else apiMsg = 'Esos números ya estaban ocupados. Escoge otros.';
+    } catch (e) {
+      apiMsg = 'No se pudo apartar. Revisa tu conexión e intenta de nuevo.';
+    }
+    reserving = false; renderBoard(); renderSheet();
+  }
+  function doneNode(){
+    var total = done.nums.length * S.price;
+    var text = 'Hola, aparté ' + (done.nums.length > 1 ? 'los números ' : 'el número ') + done.nums.join(', ') + ' de la rifa del ' + dayMonth() + '. Mi nombre es ' + done.name + '. Voy a pagar ' + COP.format(total) + '.';
+    var wa = S.phone ? h('a', {class:'btn', href:'https://wa.me/' + S.phone + '?text=' + encodeURIComponent(text), target:'_blank', rel:'noopener'}, 'Avisar por WhatsApp') : null;
+    return h('div', {class:'sheet-in'},
+      h('div', {class:'sheet-row'},
+        h('h3', {text:'Apartaste ' + done.nums.join(', '), style:'font-family:var(--font-display);font-size:26px;font-weight:800'}),
+        h('span', {class:'tot', text:COP.format(total)})),
+      h('p', {class:'hint', text:'Tu número ya aparece como apartado para todos. Avisa al organizador y haz el pago para que quede vendido.'}),
+      done.busy.length ? h('p', {class:'err', text:'Estos ya estaban ocupados: ' + done.busy.join(', ') + '.'}) : null,
+      h('div', {class:'sheet-row'}, wa, h('button', {type:'button', class:'btn sec', onclick:function(){ done = null; renderSheet(); }}, 'Cerrar'))
+    );
+  }
+
   /* ---------- Publicar ---------- */
   var LT = '<';
   var FONTS = '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=Figtree:wght@400;500;700&display=swap">';
@@ -485,6 +558,11 @@ details summary{cursor:pointer;font-weight:700;padding:6px 0}
   var app = $('app');
   app.append(h('div', {id:'ow', hidden:true}), h('div', {id:'hd'}), h('section', {id:'bd', class:'board'}), h('section', {id:'hw', class:'how'}));
   renderAll();
+  if (S.api){
+    loadRemote();
+    setInterval(loadRemote, 20000);
+    document.addEventListener('visibilitychange', loadRemote);
+  }
 
   (async function(){
     try {
