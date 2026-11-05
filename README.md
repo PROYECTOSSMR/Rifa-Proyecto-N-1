@@ -61,7 +61,7 @@
 }
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--ink);font:16px/1.5 var(--font-body);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
-body.has-sheet{padding-bottom:300px}
+body.has-sheet{padding-bottom:420px}
 .wrap{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
 h1,h2,h3{margin:0;text-wrap:balance}
 button,input,select{font:inherit;color:inherit}
@@ -114,6 +114,14 @@ button,input,select{font:inherit;color:inherit}
 .cell.ed{box-shadow:0 0 0 3px var(--bg),0 0 0 5px var(--ink)}
 .cell.owner.res,.cell.owner.sold{cursor:pointer}
 
+/* Pago */
+.pay{background:var(--surface);border:2px solid var(--ink);border-radius:14px;padding:18px 22px;display:flex;flex-direction:column;gap:10px}
+.pay h2{font-family:var(--font-display);font-size:24px;font-weight:800;text-transform:uppercase}
+.pay-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+.pay-num{font-family:var(--font-display);font-weight:800;font-size:clamp(36px,11vw,48px);line-height:1;letter-spacing:.02em;font-variant-numeric:tabular-nums;word-break:break-all}
+.pay-who{margin:0;font-weight:700}
+.pay p{margin:0}
+.pay .hint{font-weight:400}
 /* Cómo participar */
 .how{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 22px;display:flex;flex-direction:column;gap:10px}
 .how h2{font-family:var(--font-display);font-size:24px;font-weight:800;text-transform:uppercase}
@@ -133,7 +141,7 @@ label.f{display:flex;flex-direction:column;gap:4px;font-size:14px;font-weight:50
 .err{color:var(--danger);font-size:14px;margin:0}
 
 /* Hoja inferior */
-#sheet{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:2px solid var(--ink);padding:14px max(16px,env(safe-area-inset-left,0px)) calc(14px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));box-shadow:0 -8px 24px rgba(0,0,0,.18)}
+#sheet{position:fixed;left:0;right:0;bottom:0;z-index:20;max-height:80%;overflow-y:auto;background:var(--surface);border-top:2px solid var(--ink);padding:14px max(16px,env(safe-area-inset-left,0px)) calc(14px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));box-shadow:0 -8px 24px rgba(0,0,0,.18)}
 .sheet-in{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:10px}
 .sheet-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between}
 .sheet-row .tot{font-family:var(--font-display);font-size:28px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
@@ -164,6 +172,7 @@ details summary{cursor:pointer;font-weight:700;padding:6px 0}
 <div id="sheet" hidden></div>
 <!--
   AJUSTES DE LA RIFA (edita solo la línea de abajo, entre las llaves):
+  pay     = datos de pago que ve la gente (method, number, holder)
   api     = dirección de tu hoja de Google (termina en /exec). Si la pones, los números y ajustes se leen de la hoja.
   prize   = premio en pesos            price  = valor por número
   drawDate= fecha del sorteo (AAAA-MM-DD)   lottery= nombre de la lotería
@@ -172,12 +181,12 @@ details summary{cursor:pointer;font-weight:700;padding:6px 0}
   numbers = números ocupados, ej. {"07":{"name":"Juan","status":"vendido"},"23":{"name":"Ana","status":"apartado"}}
   status puede ser "vendido" o "apartado". Los demás números quedan disponibles.
 -->
-<script type="application/json" id="state">{"api":"https://script.google.com/macros/s/AKfycbwqIE8Ci4aMYtq8Vw-jlUY3vcMcdHU1bRUqIMUtkB9TaLtTe201vEdEiyb31tbK-Sm2/exec","prize":500000,"price":10000,"drawDate":"2026-11-17","lottery":"Sinuano Noche","phone":"573024660747","permit":"","winner":"","numbers":{}}</script>
+<script type="application/json" id="state">{"pay":{"method":"Nequi","number":"3024660747","holder":"Ene***Beg***"},"api":"https://script.google.com/macros/s/AKfycbwqIE8Ci4aMYtq8Vw-jlUY3vcMcdHU1bRUqIMUtkB9TaLtTe201vEdEiyb31tbK-Sm2/exec","prize":500000,"price":10000,"drawDate":"2026-11-17","lottery":"Sinuano Noche","phone":"573024660747","permit":"","winner":"","numbers":{}}</script>
 <script id="app-script">
 (function(){
   var S = JSON.parse(document.getElementById('state').textContent);
   var owner = false, ownerView = true, dirty = false;
-  var sel = new Set(), edit = null, editStatus = 'libre', buyer = '', pubMsg = '', claudeArt = null, done = null, reserving = false, apiMsg = '', lastRemote = '';
+  var sel = new Set(), edit = null, editStatus = 'libre', buyer = '', buyerPhone = '', pubMsg = '', claudeArt = null, done = null, reserving = false, apiMsg = '', lastRemote = '';
   var COP = new Intl.NumberFormat('es-CO', {style:'currency', currency:'COP', maximumFractionDigits:0});
   var $ = function(id){ return document.getElementById(id); };
   var pad = function(n){ return String(n).padStart(2,'0'); };
@@ -200,6 +209,7 @@ details summary{cursor:pointer;font-weight:700;padding:6px 0}
     return e;
   }
 
+  function okPhone(v){ return /^573\d{9}$/.test(normPhone(v)); }
   function dateObj(){ return new Date(S.drawDate + 'T12:00:00'); }
   function longDate(){ return dateObj().toLocaleDateString('es-CO', {day:'numeric', month:'long', year:'numeric'}); }
   function dayMonth(){ return dateObj().toLocaleDateString('es-CO', {day:'numeric', month:'long'}); }
@@ -292,6 +302,29 @@ details summary{cursor:pointer;font-weight:700;padding:6px 0}
     renderBoard(); renderSheet();
   }
 
+  /* ---------- Pago ---------- */
+  function copyText(text, statusEl, okMsg){
+    var fail = function(){ statusEl.textContent = 'No se pudo copiar. Escribe el número a mano: ' + text; };
+    try { navigator.clipboard.writeText(text).then(function(){ statusEl.textContent = okMsg; }, fail); } catch (e) { fail(); }
+  }
+  function renderPay(){
+    var box = $('py'); if (!box) return; box.replaceChildren();
+    var pay = S.pay;
+    if (!pay || !pay.number){ box.hidden = true; return; }
+    box.hidden = false;
+    var st = h('p', {class:'hint', 'aria-live':'polite'});
+    box.append(
+      h('h2', {text:'Cómo pagar'}),
+      h('p', {}, 'Paga ', h('strong', {text:COP.format(S.price)}), ' por cada número por ' + pay.method + ' a este número:'),
+      h('div', {class:'pay-row'},
+        h('span', {class:'pay-num', text:pay.number}),
+        h('button', {type:'button', class:'btn sec', onclick:function(){ copyText(pay.number, st, 'Número copiado. Pégalo en ' + pay.method + '.'); }}, 'Copiar número')),
+      pay.holder ? h('p', {class:'pay-who', text:'A nombre de: ' + pay.holder}) : null,
+      h('p', {class:'hint', text:'Antes de confirmar el envío, revisa que el nombre que te muestra ' + pay.method + ' sea ese. Después envía el comprobante al organizador por WhatsApp.'}),
+      st
+    );
+  }
+
   /* ---------- Cómo participar ---------- */
   function renderHow(){
     var box = $('hw'); box.replaceChildren();
@@ -301,7 +334,7 @@ details summary{cursor:pointer;font-weight:700;padding:6px 0}
         h('li', {text:'Toca uno o varios números disponibles.'}),
         h('li', {text:'Escribe tu nombre.'}),
         h('li', {text:S.api ? 'Toca Apartar ahora y avisa al organizador por WhatsApp.' : 'Envía el mensaje por WhatsApp al organizador.'}),
-        h('li', {text:'Paga ' + COP.format(S.price) + ' por número. El organizador confirma y tu número aparece como vendido.'})
+        h('li', {text:'Paga ' + COP.format(S.price) + ' por número' + (S.pay && S.pay.number ? ' al ' + S.pay.method + ' ' + S.pay.number : '') + '. El organizador confirma y tu número aparece como vendido.'})
       ),
       h('p', {text:S.api ? 'Al apartar, tu número queda marcado para todos. Cuando pagues y el organizador confirme, pasa a vendido.' : 'Mientras el organizador no confirme, el número puede seguir apareciendo disponible. Si dos personas piden el mismo, se asigna al primero que pague.'})
     );
@@ -321,8 +354,11 @@ details summary{cursor:pointer;font-weight:700;padding:6px 0}
     var link = null, copyStatus = h('p', {class:'hint', 'aria-live':'polite'});
     var nameIn = h('input', {type:'text', id:'buyer-name', autocomplete:'name', placeholder:'Tu nombre', value:buyer,
       oninput:function(e){ buyer = e.target.value; updLink(); }});
-    var ready = function(){ return buyer.trim().length >= 2; };
+    var ready = function(){ return buyer.trim().length >= 2 && (!S.api || okPhone(buyerPhone)); };
+    var phoneIn = S.api ? h('input', {type:'tel', id:'buyer-phone', inputmode:'numeric', autocomplete:'tel', placeholder:'3001234567', value:buyerPhone,
+      oninput:function(e){ buyerPhone = e.target.value; updLink(); }}) : null;
     function updLink(){
+      if (apiMsg){ apiMsg = ''; var er = document.querySelector('#sheet .err'); if (er) er.remove(); }
       if (reserveBtn) reserveBtn.setAttribute('aria-disabled', ready() ? 'false' : 'true');
       if (!link) return;
       link.setAttribute('aria-disabled', ready() ? 'false' : 'true');
@@ -336,7 +372,8 @@ details summary{cursor:pointer;font-weight:700;padding:6px 0}
         onclick:function(e){ if (!ready()){ e.preventDefault(); copyStatus.textContent = 'Escribe tu nombre para continuar.'; nameIn.focus(); } }}, 'Apartar por WhatsApp');
     }
     var reserveBtn = S.api ? h('button', {type:'button', class:'btn', id:'reserve-btn', disabled:reserving, 'aria-disabled':ready() ? 'false' : 'true', onclick:function(){
-      if (!ready()){ apiMsg = 'Escribe tu nombre para continuar.'; renderSheet(); return; }
+      if (buyer.trim().length < 2){ apiMsg = 'Escribe tu nombre para continuar.'; renderSheet(); return; }
+      if (!okPhone(buyerPhone)){ apiMsg = 'Escribe un celular de 10 dígitos que empiece por 3.'; renderSheet(); return; }
       reserve();
     }}, reserving ? 'Apartando…' : 'Apartar ahora') : null;
     var copyBtn = h('button', {type:'button', class:'btn sec', onclick:function(){
@@ -353,6 +390,7 @@ details summary{cursor:pointer;font-weight:700;padding:6px 0}
         h('span', {class:'tot', text:COP.format(nums.length * S.price)})
       ),
       h('label', {class:'f', for:'buyer-name'}, 'Tu nombre', nameIn),
+      S.api ? h('label', {class:'f', for:'buyer-phone'}, 'Tu celular (WhatsApp)', phoneIn, h('span', {class:'hint', text:'Solo lo ve el organizador, para recordarte el pago. No se muestra en la página.'})) : null,
       h('div', {class:'sheet-row'}, S.api ? reserveBtn : [link, copyBtn]),
       S.api ? h('p', {class:'hint', text:'Al apartar, el número queda marcado para todos. Después avisa al organizador por WhatsApp y haz el pago.'}) : S.phone
         ? h('p', {class:'hint'}, 'Se abre WhatsApp con el mensaje listo para +' + S.phone + '. Tu número queda apartado cuando el organizador lo confirme.')
@@ -485,7 +523,7 @@ details summary{cursor:pointer;font-weight:700;padding:6px 0}
       applySettings(d.ajustes || {});
       var removed = false;
       Array.from(sel).forEach(function(k){ if (state(Number(k)) !== 'free'){ sel.delete(k); removed = true; } });
-      renderHeader(); renderBoard(); renderHow();
+      renderHeader(); renderBoard(); renderPay(); renderHow();
       if (removed) renderSheet();
     } catch (e) { /* si falla, la página sigue con lo que ya tiene */ }
   }
@@ -494,8 +532,9 @@ details summary{cursor:pointer;font-weight:700;padding:6px 0}
     reserving = true; apiMsg = ''; renderSheet();
     var nums = Array.from(sel).sort(), nombre = buyer.trim();
     try {
-      var r = await fetch(S.api, {method:'POST', body:JSON.stringify({nombre:nombre, numeros:nums})});
+      var r = await fetch(S.api, {method:'POST', body:JSON.stringify({nombre:nombre, celular:normPhone(buyerPhone), numeros:nums})});
       var d = await r.json();
+      if (d && d.error === 'celular'){ apiMsg = 'Escribe un celular de 10 dígitos que empiece por 3.'; reserving = false; renderSheet(); return; }
       if (!d || !d.ok) throw new Error('api');
       applyNumbers(d.numeros, d.nombres);
       lastRemote = '';
@@ -516,7 +555,8 @@ details summary{cursor:pointer;font-weight:700;padding:6px 0}
       h('div', {class:'sheet-row'},
         h('h3', {text:'Apartaste ' + done.nums.join(', '), style:'font-family:var(--font-display);font-size:26px;font-weight:800'}),
         h('span', {class:'tot', text:COP.format(total)})),
-      h('p', {class:'hint', text:'Tu número ya aparece como apartado para todos. Avisa al organizador y haz el pago para que quede vendido.'}),
+      h('p', {class:'hint', text:'Tu número ya aparece como apartado para todos. Haz el pago y avisa al organizador. Unos días antes del sorteo te puede escribir por WhatsApp para recordártelo.'}),
+      S.pay && S.pay.number ? h('p', {class:'hint', style:'color:var(--ink);font-weight:700', text:'Paga ' + COP.format(total) + ' al ' + S.pay.method + ' ' + S.pay.number + ' (' + (S.pay.holder || '') + ')'}) : null,
       done.busy.length ? h('p', {class:'err', text:'Estos ya estaban ocupados: ' + done.busy.join(', ') + '.'}) : null,
       h('div', {class:'sheet-row'}, wa, h('button', {type:'button', class:'btn sec', onclick:function(){ done = null; renderSheet(); }}, 'Cerrar'))
     );
@@ -554,9 +594,9 @@ details summary{cursor:pointer;font-weight:700;padding:6px 0}
   }
 
   /* ---------- Arranque ---------- */
-  function renderAll(){ renderHeader(); renderBoard(); renderHow(); renderOwner(); renderSheet(); }
+  function renderAll(){ renderHeader(); renderBoard(); renderPay(); renderHow(); renderOwner(); renderSheet(); }
   var app = $('app');
-  app.append(h('div', {id:'ow', hidden:true}), h('div', {id:'hd'}), h('section', {id:'bd', class:'board'}), h('section', {id:'hw', class:'how'}));
+  app.append(h('div', {id:'ow', hidden:true}), h('div', {id:'hd'}), h('section', {id:'bd', class:'board'}), h('section', {id:'py', class:'pay'}), h('section', {id:'hw', class:'how'}));
   renderAll();
   if (S.api){
     loadRemote();
