@@ -105,10 +105,10 @@ button,input,select{font:inherit;color:inherit}
 .grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
 @media (min-width:520px){.grid{grid-template-columns:repeat(10,minmax(0,1fr))}}
 .cell{position:relative;aspect-ratio:1/1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;border-radius:8px;border:1.5px solid var(--ink);background:var(--surface);cursor:pointer;font-family:var(--font-display);font-weight:700;font-size:clamp(22px,5.5vw,28px);line-height:1;padding:0;font-variant-numeric:tabular-nums}
-.cell small{font:500 10px/1.1 var(--font-body);max-width:90%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px}
+.cell small{font:600 10.5px/1.15 var(--font-body);max-width:92%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px}
 .cell:hover{background:var(--bg)}
 .cell.res{border:1.5px dashed var(--res-line);color:var(--res-fg);background:repeating-linear-gradient(135deg,transparent 0 5px,var(--line) 5px 7px);cursor:not-allowed}
-.cell.sold{background:var(--sold-bg);border-color:var(--sold-bg);color:var(--sold-fg);text-decoration:line-through;cursor:not-allowed}
+.cell.sold{background:var(--sold-bg);border-color:var(--sold-bg);color:var(--sold-fg);cursor:not-allowed}
 .cell.sel{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);box-shadow:0 0 0 3px var(--bg),0 0 0 5px var(--ink)}
 .cell.win{box-shadow:0 0 0 3px var(--bg),0 0 0 6px var(--accent)}
 .cell.ed{box-shadow:0 0 0 3px var(--bg),0 0 0 5px var(--ink)}
@@ -263,9 +263,9 @@ details summary{cursor:pointer;font-weight:700;padding:6px 0}
         var s = state(i), key = pad(i), entry = S.numbers[key];
         var cls = 'cell' + (s !== 'free' ? ' ' + s : '') + (sel.has(key) ? ' sel' : '') + (S.winner === key ? ' win' : '') + (isOwner ? ' owner' : '') + (edit === key ? ' ed' : '');
         var blocked = !isOwner && s !== 'free';
-        var b = h('button', {type:'button', class:cls, disabled:blocked, 'aria-pressed':sel.has(key) ? 'true' : 'false', 'aria-label':'Número ' + key + ', ' + stateWord(s) + (sel.has(key) ? ', seleccionado' : ''),
+        var b = h('button', {type:'button', class:cls, disabled:blocked, 'aria-pressed':sel.has(key) ? 'true' : 'false', title:entry && entry.name ? entry.name : null, 'aria-label':'Número ' + key + ', ' + stateWord(s) + (entry && entry.name ? ' por ' + entry.name : '') + (sel.has(key) ? ', seleccionado' : ''),
           onclick:function(){ onCell(key, s); }},
-          key, isOwner && entry && entry.name ? h('small', {text:entry.name}) : null);
+          key, entry && entry.name ? h('small', {text:entry.name}) : null);
         grid.append(b);
       })(i);
     }
@@ -458,9 +458,9 @@ details summary{cursor:pointer;font-weight:700;padding:6px 0}
   }
 
   /* ---------- Hoja de Google ---------- */
-  function applyNumbers(obj){
+  function applyNumbers(obj, names){
     S.numbers = {};
-    Object.keys(obj || {}).forEach(function(k){ S.numbers[k] = {name:'', status:obj[k]}; });
+    Object.keys(obj || {}).forEach(function(k){ S.numbers[k] = {name:(names && names[k]) || '', status:obj[k]}; });
   }
   function applySettings(a){
     var digits = function(v){ return Number(String(v).replace(/\D/g, '')); };
@@ -478,10 +478,10 @@ details summary{cursor:pointer;font-weight:700;padding:6px 0}
       var r = await fetch(S.api + (S.api.indexOf('?') > -1 ? '&' : '?') + 't=' + Date.now(), {cache:'no-store'});
       var d = await r.json();
       if (!d || !d.ok) return;
-      var sig = JSON.stringify([d.numeros, d.ajustes]);
+      var sig = JSON.stringify([d.numeros, d.nombres, d.ajustes]);
       if (sig === lastRemote) return;
       lastRemote = sig;
-      applyNumbers(d.numeros);
+      applyNumbers(d.numeros, d.nombres);
       applySettings(d.ajustes || {});
       var removed = false;
       Array.from(sel).forEach(function(k){ if (state(Number(k)) !== 'free'){ sel.delete(k); removed = true; } });
@@ -497,7 +497,7 @@ details summary{cursor:pointer;font-weight:700;padding:6px 0}
       var r = await fetch(S.api, {method:'POST', body:JSON.stringify({nombre:nombre, numeros:nums})});
       var d = await r.json();
       if (!d || !d.ok) throw new Error('api');
-      applyNumbers(d.numeros);
+      applyNumbers(d.numeros, d.nombres);
       lastRemote = '';
       nums.forEach(function(k){ sel.delete(k); });
       var got = d.apartados || [];
