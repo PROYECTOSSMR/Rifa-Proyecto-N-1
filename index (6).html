@@ -24,6 +24,8 @@
   --res-line:#9A6B00;
   --res-fg:#5C4300;
   --danger:#B3261E;
+  --win:#1B7F37;
+  --win-ink:#FFFFFF;
   --font-display:"Big Shoulders Display","Arial Narrow",Impact,sans-serif;
   --font-body:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
 }
@@ -41,6 +43,8 @@
     --res-line:#FFC72C;
     --res-fg:#FFE08A;
     --danger:#FF8A80;
+    --win:#3DDC84;
+    --win-ink:#06240F;
     color-scheme:dark;
   }
 }
@@ -57,6 +61,8 @@
   --res-line:#FFC72C;
   --res-fg:#FFE08A;
   --danger:#FF8A80;
+    --win:#3DDC84;
+    --win-ink:#06240F;
   color-scheme:dark;
 }
 *{box-sizing:border-box}
@@ -90,7 +96,7 @@ button,input,select{font:inherit;color:inherit}
   .stub::after{bottom:-12px}
   .tmain{border-top:0;border-left:2px dashed var(--line)}
 }
-.winner{background:var(--accent);color:var(--accent-ink);border-radius:12px;padding:14px 18px;display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.winner{background:var(--win);color:var(--win-ink);border-radius:12px;padding:14px 18px;display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
 .winner b{font-family:var(--font-display);font-size:44px;line-height:1;font-weight:800}
 
 /* Tablero */
@@ -110,7 +116,7 @@ button,input,select{font:inherit;color:inherit}
 .cell.res{border:1.5px dashed var(--res-line);color:var(--res-fg);background:repeating-linear-gradient(135deg,transparent 0 5px,var(--line) 5px 7px);cursor:not-allowed}
 .cell.sold{background:var(--sold-bg);border-color:var(--sold-bg);color:var(--sold-fg);cursor:not-allowed}
 .cell.sel{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);box-shadow:0 0 0 3px var(--bg),0 0 0 5px var(--ink)}
-.cell.win{box-shadow:0 0 0 3px var(--bg),0 0 0 6px var(--accent)}
+.cell.win,.cell.win.sold,.cell.win.res,.cell.win.sel{background:var(--win);border:2px solid var(--win);color:var(--win-ink);text-decoration:none;box-shadow:0 0 0 3px var(--bg),0 0 0 6px var(--win)}
 .cell.ed{box-shadow:0 0 0 3px var(--bg),0 0 0 5px var(--ink)}
 .cell.owner.res,.cell.owner.sold{cursor:pointer}
 
@@ -273,9 +279,9 @@ details summary{cursor:pointer;font-weight:700;padding:6px 0}
         var s = state(i), key = pad(i), entry = S.numbers[key];
         var cls = 'cell' + (s !== 'free' ? ' ' + s : '') + (sel.has(key) ? ' sel' : '') + (S.winner === key ? ' win' : '') + (isOwner ? ' owner' : '') + (edit === key ? ' ed' : '');
         var blocked = !isOwner && s !== 'free';
-        var b = h('button', {type:'button', class:cls, disabled:blocked, 'aria-pressed':sel.has(key) ? 'true' : 'false', title:entry && entry.name ? entry.name : null, 'aria-label':'Número ' + key + ', ' + stateWord(s) + (entry && entry.name ? ' por ' + entry.name : '') + (sel.has(key) ? ', seleccionado' : ''),
+        var b = h('button', {type:'button', class:cls, disabled:blocked, 'aria-pressed':sel.has(key) ? 'true' : 'false', title:entry && entry.name ? entry.name : null, 'aria-label':'Número ' + key + ', ' + stateWord(s) + (entry && entry.name ? ' por ' + entry.name : '') + (S.winner === key ? ', número ganador' : '') + (sel.has(key) ? ', seleccionado' : ''),
           onclick:function(){ onCell(key, s); }},
-          key, entry && entry.name ? h('small', {text:entry.name}) : null);
+          key, entry && entry.name ? h('small', {text:entry.name}) : (S.winner === key ? h('small', {text:'Ganador'}) : null));
         grid.append(b);
       })(i);
     }
