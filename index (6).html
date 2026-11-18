@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Rifa APLAZADA para el 28 de Noviembre</title>
+<title>Rifa del 28 de Noviembre</title>
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
 <body>
@@ -73,6 +73,9 @@ h1,h2,h3{margin:0;text-wrap:balance}
 button,input,select{font:inherit;color:inherit}
 :focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 
+/* Aviso de aplazamiento */
+.notice{margin-bottom:20px;padding:16px 20px;border-radius:12px;background:var(--accent);color:var(--accent-ink);border:3px solid var(--ink);text-align:center}
+.notice b{display:block;font-family:var(--font-display);font-weight:800;font-size:clamp(26px,7.5vw,38px);line-height:1.05;text-transform:uppercase;letter-spacing:.01em;text-wrap:balance}
 /* Boleta */
 .ticket{position:relative;display:grid;grid-template-columns:minmax(0,1fr);background:var(--surface);border-radius:14px;border:1px solid var(--line)}
 .stub{position:relative;background:var(--sold-bg);color:var(--accent);padding:18px 22px;border-radius:13px 13px 0 0;display:flex;flex-direction:column;gap:2px}
@@ -178,6 +181,7 @@ details summary{cursor:pointer;font-weight:700;padding:6px 0}
 <div id="sheet" hidden></div>
 <!--
   AJUSTES DE LA RIFA (edita solo la línea de abajo, entre las llaves):
+  postponed = true muestra el aviso "Rifa aplazada para el ..." (pon false para quitarlo)
   pay     = datos de pago que ve la gente (method, number, holder)
   api     = dirección de tu hoja de Google (termina en /exec). Si la pones, los números y ajustes se leen de la hoja.
   prize   = premio en pesos            price  = valor por número
@@ -187,7 +191,7 @@ details summary{cursor:pointer;font-weight:700;padding:6px 0}
   numbers = números ocupados, ej. {"07":{"name":"Juan","status":"vendido"},"23":{"name":"Ana","status":"apartado"}}
   status puede ser "vendido" o "apartado". Los demás números quedan disponibles.
 -->
-<script type="application/json" id="state">{"pay":{"method":"Nequi","number":"3024660747","holder":"Ene***Beg***"},"api":"https://script.google.com/macros/s/AKfycbwqIE8Ci4aMYtq8Vw-jlUY3vcMcdHU1bRUqIMUtkB9TaLtTe201vEdEiyb31tbK-Sm2/exec","prize":500000,"price":10000,"drawDate":"2026-11-17","lottery":"Sinuano Noche","phone":"573024660747","permit":"","winner":"","numbers":{}}</script>
+<script type="application/json" id="state">{"postponed":true,"pay":{"method":"Nequi","number":"3024660747","holder":"Ene***Beg***"},"api":"https://script.google.com/macros/s/AKfycbwqIE8Ci4aMYtq8Vw-jlUY3vcMcdHU1bRUqIMUtkB9TaLtTe201vEdEiyb31tbK-Sm2/exec","prize":500000,"price":10000,"drawDate":"2026-11-28","lottery":"Sinuano Noche","phone":"573024660747","permit":"","winner":"","numbers":{}}</script>
 <script id="app-script">
 (function(){
   var S = JSON.parse(document.getElementById('state').textContent);
@@ -242,6 +246,8 @@ details summary{cursor:pointer;font-weight:700;padding:6px 0}
   /* ---------- Encabezado ---------- */
   function renderHeader(){
     var box = $('hd'); box.replaceChildren();
+    document.title = 'Rifa del ' + dayMonth();
+    if (S.postponed) box.append(h('div', {class:'notice', role:'status'}, h('b', {text:'Rifa aplazada para el ' + dayMonth()})));
     box.append(
       h('div', {class:'ticket'},
         h('div', {class:'stub'},
